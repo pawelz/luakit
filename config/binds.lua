@@ -38,7 +38,7 @@ binds.mode_binds = {
         key({"Control"}, "b",           function (w) w:scroll_page(-1.0)   end),
         key({},          "space",       function (w) w:scroll_page(1.0) end),
         key({},          "BackSpace",   function (w) w:scroll_page(-1.0) end),
-        buf("^gg$",                     function (w) w:scroll_vert("0%")   end),
+        -- buf("^gg$",                     function (w) w:scroll_vert("0%")   end),
         buf("^G$",                      function (w) w:scroll_vert("100%") end),
         buf("^[\-\+]?[0-9]+[%%G]$",     function (w, b) w:scroll_vert(string.match(b, "^([\-\+]?%d+)[%%G]$") .. "%") end),
 

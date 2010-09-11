@@ -10,6 +10,8 @@ function info(...) if luakit.verbose then print(string.format(...)) end end
 -- ("$XDG_CONFIG_HOME/luakit/globals.lua" or "/etc/xdg/luakit/globals.lua")
 require "globals"
 
+search_engines["wikipedia_pl"]="http://en.wikipedia.org/wiki/Special:Search?search={0}"
+
 -- Load users theme
 -- ("$XDG_CONFIG_HOME/luakit/theme.lua" or "/etc/xdg/luakit/theme.lua")
 lousy.theme.init(lousy.util.find_config("theme.lua"))
@@ -30,6 +32,13 @@ require "webview"
 -- Load users keybindings
 -- ("$XDG_CONFIG_HOME/luakit/binds.lua" or "/etc/xdg/luakit/binds.lua")
 require "binds"
+
+table.insert( binds.mode_binds['normal'], lousy.bind.buf("^gg$",                    function (w, c) w:enter_cmd(":websearch google ") end))
+table.insert( binds.mode_binds['normal'], lousy.bind.buf("^we$",                    function (w, c) w:enter_cmd(":websearch wikipedia ") end))
+table.insert( binds.mode_binds['normal'], lousy.bind.buf("^wp$",                    function (w, c) w:enter_cmd(":websearch wikipedia_pl ") end))
+table.insert( binds.commands, lousy.bind.cmd({"rsget",       "dr"},                 function (w, c) w:eval_js_from_file(lousy.util.find_data("scripts/rsget.js")) end))
+table.insert( binds.commands, lousy.bind.cmd({"test"},                              function (w, c) w:eval_js_from_file(lousy.util.find_data("tests/test.js")) end))
+table.insert( binds.commands, lousy.bind.cmd({"print"},                             function (w, c) w:eval_js("print()", "rc.lua") end))
 
 -- Init scripts
 require "follow"
