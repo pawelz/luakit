@@ -322,6 +322,55 @@ window.methods = {
         end
     end,
 
+    beg_line = function (w)
+        local i = w.ibar.input
+        i.position = 1
+    end,
+
+    end_line = function (w)
+        local i = w.ibar.input
+        i.position = -1
+    end,
+
+    forward_char = function (w)
+        local i = w.ibar.input
+        i.position = i.position + 1
+    end,
+
+    backward_char = function (w)
+        local i = w.ibar.input
+        local pos = i.position
+        if pos > 1 then
+            i.position = pos - 1
+        end
+    end,
+
+    forward_word = function (w)
+        local i = w.ibar.input
+        local text = i.text
+        local pos = i.position
+        if text and #text > 1 then
+            local right = string.sub(text, pos+1)
+            if string.find(right, "%w+") then
+                local crud, move = string.find(right, "%w+")
+                i.position = pos + move
+            end
+        end
+    end,
+
+    backward_word = function (w)
+        local i = w.ibar.input
+        local text = i.text
+        local pos = i.position
+        if text and #text > 1 and pos > 1 then
+            local left = string.reverse(string.sub(text, 2, pos))
+            if string.find(left, "%w+") then
+                local crud, move = string.find(left, "%w+")
+                i.position = pos - move
+            end
+        end
+    end,
+
     -- Wrapper around luakit.set_selection that shows a notification
     set_selection = function (w, text, selection)
         luakit.set_selection(text, selection or "primary")

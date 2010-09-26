@@ -8,6 +8,9 @@ binds = {}
 local key, buf, but, cmd = lousy.bind.key, lousy.bind.buf, lousy.bind.but, lousy.bind.cmd
 local match, join = string.match, lousy.util.table.join
 
+-- String aliases
+local strip, split = lousy.util.string.strip, lousy.util.string.split
+
 -- Globals or defaults that are used in binds
 local scroll_step = globals.scroll_step or 20
 local more, less = "+"..scroll_step.."px", "-"..scroll_step.."px"
@@ -115,6 +118,8 @@ binds.mode_binds = {
         key({},          "b",           function (w, m) w:back(m.count)    end, {count=1}),
         key({},          "XF86Back",    function (w, m) w:back(m.count)    end, {count=1}),
         key({},          "XF86Forward", function (w, m) w:forward(m.count) end, {count=1}),
+        key({"Control"}, "i",           function (w)    w:back()           end),
+        key({"Control"}, "o",           function (w)    w:forward()        end),
 
         -- Tab
         key({"Control"}, "Page_Up",     function (w)       w:prev_tab() end),
@@ -135,6 +140,8 @@ binds.mode_binds = {
         buf("^gH$",                     function (w, b, m) for i=1,m.count do w:new_tab(homepage) end end, {count=1}),
         buf("^gh$",                     function (w)       w:navigate(homepage) end),
 
+        buf("^gy$",                     function (w) w:new_tab((w:get_current() or {}).history or "") end),
+
         key({},          "r",           function (w) w:reload() end),
         key({},          "R",           function (w) w:reload(true) end),
         key({"Control"}, "c",           function (w) w:stop() end),
@@ -144,12 +151,33 @@ binds.mode_binds = {
 
         -- Window
         buf("^ZZ$",                     function (w) w:save_session() w:close_win() end),
+        buf("^ZQ$",                     function (w) w:close_win() end),
         buf("^D$",                      function (w) w:close_win() end),
 
         -- Bookmarking
         key({},          "B",           function (w)       w:enter_cmd(":bookmark " .. ((w:get_current() or {}).uri or "http://") .. " ") end),
         buf("^gb$",                     function (w)       w:navigate(bookmarks.dump_html()) end),
         buf("^gB$",                     function (w, b, m) local u = bookmarks.dump_html() for i=1,m.count do w:new_tab(u) end end, {count=1}),
+
+        -- Quickmark open (`[count]go{a-zA-Z0-9}` or `[count]gn{a-zA-Z0-9}`)
+        buf("^g[on]%w$",                function (w, b, m)
+                                            local mode, token = string.match(b, "^g(.)(.)$")
+                                            local uris = quickmarks.get(token)
+                                            for c=1,m.count do
+                                                for i, uri in ipairs(uris or {}) do
+                                                    uri = w:search_open(uri)
+                                                    if mode == "o" and c == 1 and i == 1 then w:navigate(uri) else w:new_tab(uri) end
+                                                end
+                                            end
+                                        end, {count=1}),
+
+        -- Quickmark current uri (`M{a-zA-Z0-9}`)
+        buf("^M%w$",                    function (w, b)
+                                            local token = string.match(b, "^M(.)$")
+                                            local uri = w:get_current().uri
+                                            quickmarks.set(token, {uri})
+                                            w:notify(string.format("Quickmarked %q: %s", token, uri))
+                                        end),
 
         -- Mouse bindings
         but({},          2,             function (w)
@@ -168,6 +196,12 @@ binds.mode_binds = {
         key({},          "Tab",         function (w) w:cmd_completion() end),
         key({"Control"}, "w",           function (w) w:del_word() end),
         key({"Control"}, "u",           function (w) w:del_line() end),
+        key({"Control"}, "a",           function (w) w:beg_line() end),
+        key({"Control"}, "e",           function (w) w:end_line() end),
+        key({"Control"}, "f",           function (w) w:forward_char() end),
+        key({"Control"}, "b",           function (w) w:backward_char() end),
+        key({"Mod1"},    "f",           function (w) w:forward_word() end),
+        key({"Mod1"},    "b",           function (w) w:backward_word() end),
     },
     search = {
         key({"Control"}, "j",           function (w) w:search(nil, true) end),
@@ -202,10 +236,45 @@ binds.commands = {
     cmd({"viewsource",  "vs" },         function (w)    w:toggle_source(true) end),
     cmd({"viewsource!", "vs!"},         function (w)    w:toggle_source() end),
     cmd({"bookmark",    "bm" },         function (w, a)
-                                            local args = lousy.util.string.split(a)
+                                            local args = split(a)
                                             local uri = table.remove(args, 1)
                                             bookmarks.add(uri, args)
                                         end),
+    cmd("bookdel",                      function (w, a) bookmarks.del(tonumber(a)) end),
+
+    -- Quickmark add (`:qmark f http://forum1.com, forum2.com, imdb some artist`)
+    cmd("qma[rk]",                      function (w, a)
+                                            local token, uris = string.match(strip(a), "^(%w)%s+(.+)$")
+                                            assert(token, "invalid token")
+                                            uris = split(uris, ",%s+")
+                                            quickmarks.set(token, uris)
+                                            w:notify(string.format("Quickmarked %q: %s", token, table.concat(uris, ", ")))
+                                        end),
+
+    -- Quickmark edit (`:qmarkedit f` -> `:qmark f furi1, furi2, ..`)
+    cmd({"qme", "qmarkedit"},           function (w, a)
+                                            token = strip(a)
+                                            assert(#token == 1, "invalid token length: " .. token)
+                                            local uris = quickmarks.get(token)
+                                            w:enter_cmd(string.format(":qmark %s %s", token, table.concat(uris or {}, ", ")))
+                                        end),
+
+    -- Quickmark del (`:delqmarks b-p Aa z 4-9`)
+    cmd("delqm[arks]",                  function (w, a)
+                                            -- Find and del all range specifiers
+                                            string.gsub(a, "(%w%-%w)", function (range)
+                                                range = "["..range.."]"
+                                                for _, token in ipairs(quickmarks.get_tokens()) do
+                                                    if string.match(token, range) then quickmarks.del(token, false) end
+                                                end
+                                            end)
+                                            -- Delete lone tokens
+                                            string.gsub(a, "(%w)", function (token) quickmarks.del(token, false) end)
+                                            quickmarks.save()
+                                        end),
+
+    -- Quickmark delete all
+    cmd({"delqm!", "delqmarks!"},       function (w) quickmarks.delall() end),
 }
 
 -- Helper functions which are added to the window struct
@@ -251,28 +320,22 @@ binds.helper_methods = {
     -- Intelligent open command which can detect a uri or search argument.
     search_open = function (w, arg)
         if not arg then return "about:blank" end
-        local str = lousy.util.string
-        args = str.split(str.strip(arg))
+        args = split(strip(arg))
         -- Detect scheme:// or "." in string
         if #args == 1 and (string.match(args[1], "%.") or string.match(args[1], "^%w+://")) then
             return args[1]
         end
         -- Find search engine
-        if #args >= 1 and string.match(args[1], "^%w+$") then
-            -- Find exact match
-            if search_engines[args[1]] then
-                return ({string.gsub(search_engines[args[1]], "{%d}", table.concat(args, " ", 2))})[1]
-            end
-            -- Find partial match
-            local part, len = args[1], #(args[1])
-            for engine, uri in pairs(search_engines) do
-                if string.sub(engine, 1, len) == part then
-                    return ({string.gsub(uri, "{%d}", table.concat(args, " ", 2))})[1]
-                end
-            end
+        local engine = "default"
+        if #args >= 1 and search_engines[args[1]] then
+            engine = args[1]
+            print(engine)
+            table.remove(args, 1)
         end
-        -- Fallback on google search
-        return ({string.gsub(search_engines["google"], "{%d}", table.concat(args, " "))})[1]
+        -- Use javascripts UTF-8 aware uri encoding function
+        local terms = w:eval_js(string.format("encodeURIComponent(%q)", table.concat(args, " ")))
+        -- Return search terms sub'd into search string
+        return ({string.gsub(search_engines[engine], "{%d}", ({string.gsub(terms, "%%", "%%%%")})[1])})[1]
     end,
 
     -- Tab traversing functions

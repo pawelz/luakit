@@ -386,9 +386,8 @@ luaH_luakit_set_selection(lua_State *L)
 static gint
 luaH_luakit_get_special_dir(lua_State *L)
 {
-    size_t len;
-    const gchar *name = luaL_checklstring(L, 1, &len);
-    luakit_token_t token = l_tokenize(name, len);
+    const gchar *name = luaL_checkstring(L, 1);
+    luakit_token_t token = l_tokenize(name);
     GUserDirectory atom;
     /* match token with G_USER_DIR_* atom */
     switch(token) {
@@ -417,8 +416,8 @@ static gint
 luaH_luakit_spawn_sync(lua_State *L)
 {
     GError *e = NULL;
-    gchar *stdout = NULL;
-    gchar *stderr = NULL;
+    gchar *_stdout = NULL;
+    gchar *_stderr = NULL;
     gint rv;
     struct sigaction sigact;
     struct sigaction oldact;
@@ -431,7 +430,7 @@ luaH_luakit_spawn_sync(lua_State *L)
     sigemptyset (&sigact.sa_mask);
     if (sigaction(SIGCHLD, &sigact, &oldact))
         fatal("Can't clear SIGCHLD handler");
-    g_spawn_command_line_sync(command, &stdout, &stderr, &rv, &e);
+    g_spawn_command_line_sync(command, &_stdout, &_stderr, &rv, &e);
     if (sigaction(SIGCHLD, &oldact, NULL))
         fatal("Can't restore SIGCHLD handler");
 
@@ -442,10 +441,10 @@ luaH_luakit_spawn_sync(lua_State *L)
         lua_error(L);
     }
     lua_pushinteger(L, WEXITSTATUS(rv));
-    lua_pushstring(L, stdout);
-    lua_pushstring(L, stderr);
-    g_free(stdout);
-    g_free(stderr);
+    lua_pushstring(L, _stdout);
+    lua_pushstring(L, _stderr);
+    g_free(_stdout);
+    g_free(_stderr);
     return 3;
 }
 
@@ -490,10 +489,9 @@ luaH_luakit_index(lua_State *L)
     if(luaH_usemetatable(L, 1, 2))
         return 1;
 
-    size_t len;
     widget_t *w;
-    const gchar *prop = luaL_checklstring(L, 2, &len);
-    luakit_token_t token = l_tokenize(prop, len);
+    const gchar *prop = luaL_checkstring(L, 2);
+    luakit_token_t token = l_tokenize(prop);
 
     switch(token) {
 

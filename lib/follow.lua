@@ -437,10 +437,10 @@ mode_binds.normal = join(mode_binds.normal or {}, {
                     function (uri, s)
                         for i=1,(s.count or 1) do w:new_tab(uri, false) end
                         return "root-active"
-                    end, (m.count > 0 and m.count) or nil) end),
+                    end, m.count) end),
 
-    -- Open in new tab and re-enter follow mode for another selection
-    buf("^;m$", function (w,b,m) w:start_follow("uri",    "multi tab",  function (uri, s) w:new_tab(uri, false) w:set_mode("follow") end) end),
+    -- Follow a sequence of <CR> delimited hints in background tabs.
+    buf("^;F$", function (w,b,m) w:start_follow("uri",    "multi tab",  function (uri, s) w:new_tab(uri, false) w:set_mode("follow") end) end),
 
     -- Yank uri or desc into primary selection
     buf("^;y$", function (w,b,m) w:start_follow("uri",    "yank",       function (uri)  w:set_selection(uri)  return "root-active" end) end),
@@ -451,10 +451,12 @@ mode_binds.normal = join(mode_binds.normal or {}, {
 
     -- Open image src
     buf("^;i$", function (w,b,m) w:start_follow("image",  "open image", function (src)  w:navigate(src)       return "root-active" end) end),
+    buf("^;I$", function (w,b,m) w:start_follow("image",  "tab image",  function (src)  w:new_tab(src)        return "root-active" end) end),
 
     -- Open, open in new tab or open in new window
     buf("^;o$", function (w,b,m) w:start_follow("uri",    "open",       function (uri)  w:navigate(uri)       return "root-active" end) end),
     buf("^;t$", function (w,b,m) w:start_follow("uri",    "open tab",   function (uri)  w:new_tab(uri)        return "root-active" end) end),
+    buf("^;b$", function (w,b,m) w:start_follow("uri",    "open bg tab",function (uri)  w:new_tab(uri, false) return "root-active" end) end),
     buf("^;w$", function (w,b,m) w:start_follow("uri",    "open window",function (uri)  window.new{uri}       return "root-active" end) end),
 
     -- Set command `:open <uri>`, `:tabopen <uri>` or `:winopen <uri>`
@@ -534,3 +536,5 @@ new_mode("follow", {
         end
     end,
 })
+
+-- vim: et:sw=4:ts=8:sts=4:tw=80
