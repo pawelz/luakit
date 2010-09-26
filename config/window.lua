@@ -5,6 +5,9 @@
 -- Window class table
 window = {}
 
+-- List of active windows by window widget
+window.bywidget = setmetatable({}, { __mode = "k" })
+
 -- Widget construction aliases
 local function entry()    return widget{type="entry"}    end
 local function eventbox() return widget{type="eventbox"} end
@@ -107,6 +110,9 @@ function window.build()
     l.loaded:hide()
     l.uri.selectable = true
     r.ssl:hide()
+
+    -- Allows indexing of window struct by window widget
+    window.bywidget[w.win] = w
 
     return w
 end
@@ -212,8 +218,8 @@ window.methods = {
     end,
 
     -- Wrapper around the bind plugin's hit method
-    hit = function (w, mods, key)
-        local caught, newbuf = lousy.bind.hit(w.binds or {}, mods, key, w.buffer, w:is_mode("normal"), w)
+    hit = function (w, mods, key, opts)
+        local caught, newbuf = lousy.bind.hit(w.binds or {}, mods, key, w.buffer, w:is_mode("normal"), w, opts)
         if w.win then
             w.buffer = newbuf
             w:update_buf()
@@ -373,13 +379,11 @@ window.methods = {
 
     update_win_title = function (w, view)
         if not view then view = w:get_current() end
-        local title = view:get_prop("title")
-        local uri = view.uri
-        if not title and not uri then
-            w.win.title = "luakit"
-        else
-            w.win.title = (title or "luakit") .. " - " .. (uri or "about:blank")
-        end
+        local uri, title = view.uri, view:get_prop("title")
+        title = (title or "luakit") .. ((uri and " - " .. uri) or "")
+        local max = globals.max_title_len or 80
+        if #title > max then title = string.sub(title, 1, max) .. "..." end
+        w.win.title = title
     end,
 
     update_uri = function (w, view, uri, link)
@@ -610,6 +614,9 @@ window.methods = {
         while w.tabs:count() ~= 0 do
             w:close_tab(nil, false)
         end
+
+        -- Remove from window index
+        window.bywidget[w.win] = nil
 
         -- Clear window struct
         w = setmetatable(w, {})

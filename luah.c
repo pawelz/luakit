@@ -468,6 +468,14 @@ luaH_luakit_spawn(lua_State *L)
     return 0;
 }
 
+static gint
+luaH_exec(lua_State *L)
+{
+    const gchar *cmd = luaL_checkstring(L, 1);
+    l_exec(cmd);
+    return 0;
+}
+
 /* luakit global table.
  * \param L The Lua VM state.
  * \return The number of elements pushed on stack.
@@ -495,16 +503,21 @@ luaH_luakit_index(lua_State *L)
       PF_CASE(SPAWN_SYNC,       luaH_luakit_spawn_sync)
       PF_CASE(GET_SELECTION,    luaH_luakit_get_selection)
       PF_CASE(SET_SELECTION,    luaH_luakit_set_selection)
+      PF_CASE(EXEC,             luaH_exec)
       /* push string properties */
       PS_CASE(CACHE_DIR,        globalconf.cache_dir)
       PS_CASE(CONFIG_DIR,       globalconf.config_dir)
       PS_CASE(DATA_DIR,         globalconf.data_dir)
+      PS_CASE(EXECPATH,         globalconf.execpath)
+      PS_CASE(CONFPATH,         globalconf.confpath)
       /* push boolean properties */
       PB_CASE(VERBOSE,          globalconf.verbose)
       /* push integer properties */
       PI_CASE(WEBKIT_MAJOR_VERSION, webkit_major_version())
       PI_CASE(WEBKIT_MINOR_VERSION, webkit_minor_version())
       PI_CASE(WEBKIT_MICRO_VERSION, webkit_micro_version())
+      PI_CASE(WEBKIT_USER_AGENT_MAJOR_VERSION, WEBKIT_USER_AGENT_MAJOR_VERSION)
+      PI_CASE(WEBKIT_USER_AGENT_MINOR_VERSION, WEBKIT_USER_AGENT_MINOR_VERSION)
 
       case L_TK_WINDOWS:
         lua_newtable(L);

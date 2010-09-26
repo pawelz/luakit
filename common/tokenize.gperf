@@ -12,6 +12,7 @@ bg
 cache_dir
 clear_search
 config_dir
+confpath
 count
 current
 data_dir
@@ -19,6 +20,8 @@ destroy
 entry
 eval_js
 eventbox
+exec
+execpath
 fg
 focus
 font
@@ -51,11 +54,12 @@ pack_end
 pack_start
 position
 reload
+reload_bypass_cache
 remove
 reorder
 search
-selectable
 select_region
+selectable
 set_alignment
 set_child
 set_padding
@@ -87,6 +91,8 @@ version
 webkit_major_version
 webkit_micro_version
 webkit_minor_version
+webkit_user_agent_major_version
+webkit_user_agent_minor_version
 webview
 window
 windows

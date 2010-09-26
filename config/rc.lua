@@ -1,5 +1,9 @@
 -- Luakit configuration file, more information at http://luakit.org/
 
+-- Set standard C locale, otherwise `string.format("%f", 0.5)` could
+-- return "0,5" (which was breaking link following for those locales).
+os.setlocale("C")
+
 -- Load library of useful functions for luakit
 require "lousy"
 
@@ -47,12 +51,21 @@ require "go_input"
 require "follow_selected"
 require "go_next_prev"
 require "go_up"
+require "session"
 
 -- Init bookmarks lib
 require "bookmarks"
 bookmarks.load()
 bookmarks.dump_html()
 
-window.new(uris)
+-- Restore last saved session
+local w = (session and session.restore())
+if w then
+    for _, uri in ipairs(uris) do
+        w:new_tab(uri, true)
+    end
+else
+    window.new(uris)
+end
 
 -- vim: et:sw=4:ts=8:sts=4:tw=80

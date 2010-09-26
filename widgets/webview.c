@@ -147,8 +147,7 @@ webview_init_properties() {
 }
 
 static const gchar*
-webview_eval_js(WebKitWebView *view, const gchar *script, const gchar *file) {
-    WebKitWebFrame *frame;
+webview_eval_js(WebKitWebFrame *frame, const gchar *script, const gchar *file) {
     JSGlobalContextRef context;
     JSObjectRef globalobject;
     JSStringRef js_file;
@@ -159,7 +158,6 @@ webview_eval_js(WebKitWebView *view, const gchar *script, const gchar *file) {
     GString *result = g_string_new(NULL);
     size_t js_result_size;
 
-    frame = webkit_web_view_get_main_frame(WEBKIT_WEB_VIEW(view));
     context = webkit_web_frame_get_global_context(frame);
     globalobject = JSContextGetGlobalObject(context);
 
@@ -184,7 +182,7 @@ webview_eval_js(WebKitWebView *view, const gchar *script, const gchar *file) {
         JSStringRef prop, val;
         JSObjectRef exc = JSValueToObject(context, js_exc, NULL);
 
-        printf("Exception occured while executing script:\n");
+        g_printf("Exception occured while executing script:\n");
 
         /* Print file */
         prop = JSStringCreateWithUTF8CString("sourceURL");
@@ -193,7 +191,7 @@ webview_eval_js(WebKitWebView *view, const gchar *script, const gchar *file) {
         if(size) {
             char cstr[size];
             JSStringGetUTF8CString(val, cstr, size);
-            printf("At %s", cstr);
+            g_printf("At %s", cstr);
         }
         JSStringRelease(prop);
         JSStringRelease(val);
@@ -205,7 +203,7 @@ webview_eval_js(WebKitWebView *view, const gchar *script, const gchar *file) {
         if(size) {
             char cstr[size];
             JSStringGetUTF8CString(val, cstr, size);
-            printf(":%s: ", cstr);
+            g_printf(":%s: ", cstr);
         }
         JSStringRelease(prop);
         JSStringRelease(val);
@@ -216,7 +214,7 @@ webview_eval_js(WebKitWebView *view, const gchar *script, const gchar *file) {
         if(size) {
             char cstr[size];
             JSStringGetUTF8CString(val, cstr, size);
-            printf("%s\n", cstr);
+            g_printf("%s\n", cstr);
         }
         JSStringRelease(val);
     }
@@ -231,13 +229,21 @@ webview_eval_js(WebKitWebView *view, const gchar *script, const gchar *file) {
 static gint
 luaH_webview_eval_js(lua_State *L)
 {
+    WebKitWebFrame *frame = NULL;
     widget_t *w = luaH_checkwidget(L, 1);
     WebKitWebView *view = WEBKIT_WEB_VIEW(g_object_get_data(G_OBJECT(w->widget), "webview"));
     const gchar *script = luaL_checkstring(L, 2);
     const gchar *filename = luaL_checkstring(L, 3);
 
+    /* Check if js should be run on currently focused frame */
+    if (lua_gettop(L) >= 4 && luaH_checkboolean(L, 4))
+        frame = webkit_web_view_get_focused_frame(view);
+    /* Fall back on main frame */
+    if (!frame)
+        frame = webkit_web_view_get_main_frame(WEBKIT_WEB_VIEW(view));
+
     /* evaluate javascript script and push return result onto lua stack */
-    const gchar *result = webview_eval_js(view, script, filename);
+    const gchar *result = webview_eval_js(frame, script, filename);
     lua_pushstring(L, result);
     return 1;
 }
@@ -623,8 +629,17 @@ static gint
 luaH_webview_reload(lua_State *L)
 {
     widget_t *w = luaH_checkwidget(L, 1);
-    GtkWidget *view = GTK_WIDGET(g_object_get_data(G_OBJECT(w->widget), "webview"));
-    webkit_web_view_reload(WEBKIT_WEB_VIEW(view));
+    WebKitWebView *view = WEBKIT_WEB_VIEW(g_object_get_data(G_OBJECT(w->widget), "webview"));
+    webkit_web_view_reload(view);
+    return 0;
+}
+
+static gint
+luaH_webview_reload_bypass_cache(lua_State *L)
+{
+    widget_t *w = luaH_checkwidget(L, 1);
+    WebKitWebView *view = WEBKIT_WEB_VIEW(g_object_get_data(G_OBJECT(w->widget), "webview"));
+    webkit_web_view_reload_bypass_cache(view);
     return 0;
 }
 
@@ -899,11 +914,11 @@ luaH_webview_push_history(lua_State *L, WebKitWebView *view)
         lua_createtable(L, 0, 2);
         /* Set hist_item[uri] = uri */
         lua_pushliteral(L, "uri");
-        lua_pushstring(L, webkit_web_history_item_get_uri(item));
+        lua_pushstring(L, item ? webkit_web_history_item_get_uri(item) : "about:blank");
         lua_rawset(L, -3);
         /* Set hist_item[title] = title */
         lua_pushliteral(L, "title");
-        lua_pushstring(L, webkit_web_history_item_get_title(item));
+        lua_pushstring(L, item ? webkit_web_history_item_get_title(item) : "");
         lua_rawset(L, -3);
         lua_rawseti(L, -2, backlen + i + 1);
     }
@@ -950,7 +965,6 @@ webview_set_history(lua_State *L, WebKitWebView *view, gint idx)
         lua_rawget(L, -2);
         lua_pushliteral(L, "uri");
         lua_rawget(L, -3);
-        luaH_dumpstack(L);
         if (pos || i < bflen) {
             item = webkit_web_history_item_new_with_data(lua_tostring(L, -1), NONULL(lua_tostring(L, -2)));
             webkit_web_back_forward_list_add_item(bflist, item);
@@ -987,28 +1001,29 @@ luaH_webview_index(lua_State *L, luakit_token_t token)
       LUAKIT_WIDGET_INDEX_COMMON
 
       /* push property methods */
-      PF_CASE(GET_PROP,         luaH_webview_get_prop)
-      PF_CASE(SET_PROP,         luaH_webview_set_prop)
+      PF_CASE(GET_PROP,             luaH_webview_get_prop)
+      PF_CASE(SET_PROP,             luaH_webview_set_prop)
       /* push scroll adjustment methods */
-      PF_CASE(GET_SCROLL_HORIZ, luaH_webview_get_scroll_horiz)
-      PF_CASE(GET_SCROLL_VERT,  luaH_webview_get_scroll_vert)
-      PF_CASE(SET_SCROLL_HORIZ, luaH_webview_set_scroll_horiz)
-      PF_CASE(SET_SCROLL_VERT,  luaH_webview_set_scroll_vert)
+      PF_CASE(GET_SCROLL_HORIZ,     luaH_webview_get_scroll_horiz)
+      PF_CASE(GET_SCROLL_VERT,      luaH_webview_get_scroll_vert)
+      PF_CASE(SET_SCROLL_HORIZ,     luaH_webview_set_scroll_horiz)
+      PF_CASE(SET_SCROLL_VERT,      luaH_webview_set_scroll_vert)
       /* push search methods */
-      PF_CASE(CLEAR_SEARCH,     luaH_webview_clear_search)
-      PF_CASE(SEARCH,           luaH_webview_search)
+      PF_CASE(CLEAR_SEARCH,         luaH_webview_clear_search)
+      PF_CASE(SEARCH,               luaH_webview_search)
       /* push history navigation methods */
-      PF_CASE(GO_BACK,          luaH_webview_go_back)
-      PF_CASE(GO_FORWARD,       luaH_webview_go_forward)
+      PF_CASE(GO_BACK,              luaH_webview_go_back)
+      PF_CASE(GO_FORWARD,           luaH_webview_go_forward)
       /* push misc webview methods */
-      PF_CASE(EVAL_JS,          luaH_webview_eval_js)
-      PF_CASE(LOADING,          luaH_webview_loading)
-      PF_CASE(RELOAD,           luaH_webview_reload)
-      PF_CASE(SSL_TRUSTED,      luaH_webview_ssl_trusted)
-      PF_CASE(STOP,             luaH_webview_stop)
+      PF_CASE(EVAL_JS,              luaH_webview_eval_js)
+      PF_CASE(LOADING,              luaH_webview_loading)
+      PF_CASE(RELOAD,               luaH_webview_reload)
+      PF_CASE(RELOAD_BYPASS_CACHE,  luaH_webview_reload_bypass_cache)
+      PF_CASE(SSL_TRUSTED,          luaH_webview_ssl_trusted)
+      PF_CASE(STOP,                 luaH_webview_stop)
       /* push source viewing methods */
-      PF_CASE(GET_VIEW_SOURCE,  luaH_webview_get_view_source)
-      PF_CASE(SET_VIEW_SOURCE,  luaH_webview_set_view_source)
+      PF_CASE(GET_VIEW_SOURCE,      luaH_webview_get_view_source)
+      PF_CASE(SET_VIEW_SOURCE,      luaH_webview_set_view_source)
 
       /* push string properties */
       PS_CASE(HOVERED_URI, g_object_get_data(G_OBJECT(view), "hovered-uri"))
