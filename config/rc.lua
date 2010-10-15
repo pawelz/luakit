@@ -14,7 +14,7 @@ function info(...) if luakit.verbose then print(string.format(...)) end end
 -- ("$XDG_CONFIG_HOME/luakit/globals.lua" or "/etc/xdg/luakit/globals.lua")
 require "globals"
 
-search_engines["wikipedia_pl"]="http://en.wikipedia.org/wiki/Special:Search?search={0}"
+search_engines["wikipedia_pl"]="http://pl.wikipedia.org/wiki/Special:Search?search={0}"
 
 -- Load users theme
 -- ("$XDG_CONFIG_HOME/luakit/theme.lua" or "/etc/xdg/luakit/theme.lua")
