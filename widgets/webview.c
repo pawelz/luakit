@@ -654,10 +654,13 @@ luaH_webview_search(lua_State *L)
     gboolean wrap = luaH_checkboolean(L, 5);
 
     webkit_web_view_unmark_text_matches(view);
-    webkit_web_view_search_text(view, text, case_sensitive, forward, wrap);
-    webkit_web_view_mark_text_matches(view, text, case_sensitive, 0);
-    webkit_web_view_set_highlight_text_matches(view, TRUE);
-    return 0;
+    gboolean ret = webkit_web_view_search_text(view, text, case_sensitive, forward, wrap);
+    if (ret) {
+        webkit_web_view_mark_text_matches(view, text, case_sensitive, 0);
+        webkit_web_view_set_highlight_text_matches(view, TRUE);
+    }
+    lua_pushboolean(L, ret);
+    return 1;
 }
 
 static gint
@@ -1274,7 +1277,7 @@ widget_webview(widget_t *w)
     /* connect webview signals */
     g_object_connect((GObject*)view,
       "signal::button-press-event",                   (GCallback)wv_button_press_cb,           w,
-      "signal::button-release-event",                 (GCallback)button_release_cb,            w,
+      "signal::button-release-event",                 (GCallback)button_cb,                    w,
       "signal::create-web-view",                      (GCallback)create_web_view_cb,           w,
       "signal::download-requested",                   (GCallback)download_request_cb,          w,
       "signal::expose-event",                         (GCallback)expose_cb,                    w,
