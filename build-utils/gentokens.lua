@@ -1,4 +1,4 @@
-#!/usr/bin/env lua
+#!/usr/bin/env lua51
 
 -- build-utils/gentokens.lua - gen tokenize lib
 --
