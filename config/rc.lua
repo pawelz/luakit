@@ -75,6 +75,8 @@ require "go_input"
 require "go_next_prev"
 require "go_up"
 
+require "google"
+
 -----------------------------
 -- End user script loading --
 -----------------------------
