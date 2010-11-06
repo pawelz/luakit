@@ -28,9 +28,9 @@ add_cmds({
 	lousy.bind.cmd("google_bookmark",
 		function (w, c)
 			local encuri = luakit.uri_encode(w:get_current().uri)
-		    local encdes = luakit.uri_encode(w:eval_js(getdesc, "google.lua"))
-		    local enctit = luakit.uri_encode(w.win.title)
-		    w:new_tab("https://www.google.com/bookmarks/api/bookmarklet?output=popup&srcUrl="..encuri.."&snippet="..encdes.."&title="..enctit, false)
+			local encdes = luakit.uri_encode(w:eval_js(getdesc, "google.lua"))
+			local enctit = luakit.uri_encode(w.win.title)
+			w:new_tab("https://www.google.com/bookmarks/api/bookmarklet?output=popup&srcUrl="..encuri.."&snippet="..encdes.."&title="..enctit, false)
 		end),
 
 	lousy.bind.cmd("google_subscribe",
