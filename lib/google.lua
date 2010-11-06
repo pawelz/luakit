@@ -11,7 +11,20 @@ local getdesc = [=[
 	})()
 ]=]
 
+local subscribe = [=[
+	var b=document.body;
+	var GR________bookmarklet_domain='http://www.google.com';
+	if(b&&!document.xmlVersion) {
+		void(z=document.createElement('script'));
+		void(z.src='http://www.google.com/reader/ui/subscribe-bookmarklet.js');
+		void(b.appendChild(z));
+	} else {
+		location='http://www.google.com/reader/view/feed/'+encodeURIComponent(location.href)
+	}
+]=]
+
 add_cmds({
+
 	lousy.bind.cmd("google_bookmark",
 		function (w, c)
 			local encuri = luakit.uri_encode(w:get_current().uri)
@@ -19,4 +32,10 @@ add_cmds({
 		    local enctit = luakit.uri_encode(w.win.title)
 		    w:new_tab("https://www.google.com/bookmarks/api/bookmarklet?output=popup&srcUrl="..encuri.."&snippet="..encdes.."&title="..enctit, false)
 		end),
+
+	lousy.bind.cmd("google_subscribe",
+		function (w, c)
+			w:eval_js(subscribe)
+		end),
+
 })
